@@ -1,0 +1,231 @@
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+ERROR:be.serve:Exception on /auth/register [POST]
+Traceback (most recent call last):
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 2529, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1825, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1823, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1799, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "E:\database\project2\bookstore\be\view\auth.py", line 35, in register
+    code, message = u.register(user_id=user_id, password=password)
+  File "E:\database\project2\bookstore\be\model\user.py", line 59, in register
+    token = jwt_encode(user_id, terminal)
+  File "E:\database\project2\bookstore\be\model\user.py", line 22, in jwt_encode
+    return encoded.decode("utf-8")
+AttributeError: 'str' object has no attribute 'decode'
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:37:34] "[35m[1mPOST /auth/register HTTP/1.1[0m" 500 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:55:38] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:56:16] "POST /auth/unregister HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:56:31] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:56:41] "[31m[1mPOST /auth/password HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:56:55] "POST /auth/password HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:57:12] "POST /auth/password HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:57:27] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:58:04] "POST /auth/logout HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:58:07] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:58:45] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:58:50] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:59:21] "POST /buyer/add_funds HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 14:59:53] "[35m[1mPOST /seller/create_store HTTP/1.1[0m" 528 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:09:48] "POST /seller/create_store HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:10:16] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:10:33] "POST /seller/add_stock_level HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:10:44] "[35m[1mPOST /buyer/new_order HTTP/1.1[0m" 530 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:13:21] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:14:04] "[35m[1mPOST /buyer/payment HTTP/1.1[0m" 528 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:15:35] "[35m[1mPOST /buyer/payment HTTP/1.1[0m" 528 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Dec/2023 15:21:16] "POST /buyer/payment HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:53:38] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:53:49] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:53:59] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:54:04] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:54:39] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Dumping model to file cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.904 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:54:58] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:55:15] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:56:47] "POST /seller/add_stock_level HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 15:57:10] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:04:34] "[35m[1mPOST /seller/add_book HTTP/1.1[0m" 516 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:16] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:21] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:27] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:31] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:37] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.868 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:42] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:06:47] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:07:09] "POST /buyer/add_funds HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:07:24] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:11:28] "[35m[1mPOST /buyer/buyer_cancel_order HTTP/1.1[0m" 520 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:32:18] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:32:31] "POST /buyer/buyer_cancel_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:33:19] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:34:05] "POST /buyer/payment HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+ERROR:be.serve:Exception on /seller/deliver_book [POST]
+Traceback (most recent call last):
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 2051, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1501, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1499, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\Anaconda\envs\db\lib\site-packages\flask\app.py", line 1485, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "E:\database\project2\bookstore\be\view\seller.py", line 54, in deliver_book
+    code, message = s.deliver_book(user_id, store_id, order_id)
+TypeError: cannot unpack non-iterable NoneType object
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:38:01] "[35m[1mPOST /seller/deliver_book HTTP/1.1[0m" 500 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:40:51] "POST /seller/deliver_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:43:56] "POST /buyer/receive_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:46:02] "[35m[1mPOST /buyer/search_history_order HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:48:02] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 16:49:26] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 22:58:12] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 22:58:34] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:38:09] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:38:14] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:38:39] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.841 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:38:51] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:39:32] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Dec/2023 23:40:07] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:37:59] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:38:04] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:38:20] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.828 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:38:30] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:38:46] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 13:39:07] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:01:46] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:02:04] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:02:23] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 1.037 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:02:34] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:02:57] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:03:05] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:16] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:18] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:30] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.835 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:38] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:45] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:07:48] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:18] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:22] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:34] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.912 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:43] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:51] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:12:57] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:13:57] "[35m[1mPOST /buyer/search_book?page=1&per_page=3 HTTP/1.1[0m" 530 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:15] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:19] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:29] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.837 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:37] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:45] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:27:49] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:29:22] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:29:55] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:30:17] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:31:19] "POST /buyer/search_book?page=1&per_page=3 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:31:57] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:32:04] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:32:20] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:32:37] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:32:54] "POST /buyer/buyer_cancel_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:33:01] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:41:51] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:41:56] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:42:11] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.814 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:42:20] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:42:28] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:42:42] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:42:45] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:43:59] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:44:16] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:44:46] "POST /buyer/buyer_cancel_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 16:44:50] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:03] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:06] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:36] "POST /seller/create_store HTTP/1.1" 200 -
+DEBUG:jieba:Building prefix dict from the default dictionary ...
+DEBUG:jieba:Loading model from cache C:\Users\86155\AppData\Local\Temp\jieba.cache
+DEBUG:jieba:Loading model cost 0.808 seconds.
+DEBUG:jieba:Prefix dict has been built successfully.
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:44] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:50] "POST /seller/add_book HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:22:59] "POST /auth/register HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:23:04] "POST /auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:23:36] "POST /buyer/new_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:23:48] "POST /buyer/overtime_cancel_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:24:40] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:24:48] "POST /buyer/search_history_order HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [14/Dec/2023 17:24:56] "POST /buyer/overtime_cancel_order HTTP/1.1" 200 -
+INFO:werkzeug: * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+INFO:werkzeug:127.0.0.1 - - [15/Dec/2023 00:26:49] "POST /auth/register HTTP/1.1" 200 -

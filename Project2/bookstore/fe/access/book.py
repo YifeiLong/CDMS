@@ -69,7 +69,7 @@ class BookDB:
             book.pages = row[7]
             book.price = row[8]
 
-            book.currency_unit = row[9]
+            # book.currency_unit = row[9]
             book.binding = row[10]
             book.isbn = row[11]
             book.author_intro = row[12]
