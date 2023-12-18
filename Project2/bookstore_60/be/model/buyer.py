@@ -81,10 +81,6 @@ class Buyer(db_conn.DBConn):
             if password != row.password:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "SELECT store_id, user_id FROM \"user_store\" WHERE store_id = %s;",
-                (store_id,),
-            )
             row = self.session.query(store.UserStore).filter_by(store_id=store_id).first()
             if row is None:
                 return error.error_non_exist_store_id(store_id)
