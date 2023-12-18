@@ -1,13 +1,14 @@
 import uuid
 import json
 import logging
-import psycopg2
-import pymongo
 import re
 import jieba
 from datetime import datetime
+from sqlalchemy import and_
+
 from be.model import db_conn
 from be.model import error
+from be.model import store
 
 
 class Buyer(db_conn.DBConn):
@@ -26,51 +27,50 @@ class Buyer(db_conn.DBConn):
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
 
             for book_id, count in id_and_count:
-                self.cursor.execute(
-                    "SELECT book_id, stock_level, book_info FROM \"store\" "
-                    "WHERE store_id =%s AND book_id =%s;",
-                    (store_id, book_id),
-                )
-                row = self.cursor.fetchone()
+                row = self.session.query(store.StoreTable).filter_by(store_id=store_id, book_id=book_id).first()
                 if row is None:
                     return error.error_non_exist_book_id(book_id) + (order_id,)
 
-                stock_level = row[1]
-                book_info = row[2]
+                stock_level = row.stock_level
+                book_info = row.book_info
                 book_info_json = json.loads(book_info)
                 price = book_info_json.get("price")
 
                 if stock_level < count:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.cursor.execute(
-                    "UPDATE \"store\" set stock_level = stock_level - %s "
-                    "WHERE store_id = %s and book_id = %s and stock_level >= %s; ",
-                    (count, store_id, book_id, count),
-                )
-                if self.cursor.rowcount == 0:
+                row = self.session.query(store.StoreTable).filter(
+                    and_(store.StoreTable.store_id == store_id, store.StoreTable.book_id == book_id,
+                         store.StoreTable.stock_level >= count)
+                ).first()
+                if row:
+                    row.stock_level -= count
+                    self.session.add(row)
+                else:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.cursor.execute(
-                    "INSERT INTO \"new_order_detail\"(order_id, book_id, count, price) "
-                    "VALUES(%s, %s, %s, %s);",
-                    (uid, book_id, count, price),
-                )
+                new_order_detail = store.NewOrderDetail(order_id=uid, book_id=book_id, count=count, price=price)
+                self.session.add(new_order_detail)
 
                 # 将信息存入历史订单，每本书一行
-                self.cursor.execute(
-                    "INSERT INTO \"history_order\" (order_id, store_id, user_id, book_id, book_count, price, is_cancelled, is_paid, is_delivered, is_received) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
-                    (uid, store_id, user_id, book_id, count, price, False, False, False, False),
+                history_order = store.HistoryOrder(
+                    order_id=uid,
+                    store_id=store_id,
+                    user_id=user_id,
+                    book_id=book_id,
+                    book_count=count,
+                    price=price,
+                    is_cancelled=False,
+                    is_paid=False,
+                    is_delivered=False,
+                    is_received=False
                 )
+                self.session.add(history_order)
 
-            self.cursor.execute(
-                "INSERT INTO \"new_order\"(order_id, store_id, user_id) "
-                "VALUES(%s, %s, %s);",
-                (uid, store_id, user_id),
-            )
+            new_order = store.NewOrder(order_id=order_id, store_id=store_id, user_id=user_id)
+            self.session.add(new_order)
 
-            self.conn.commit()
+            self.session.commit()
             order_id = uid
 
         except Exception as e:
@@ -81,99 +81,71 @@ class Buyer(db_conn.DBConn):
 
     def payment(self, user_id: str, password: str, order_id: str):
         try:
-            self.cursor.execute(
-                "SELECT order_id, user_id, store_id FROM \"new_order\" WHERE order_id = %s",
-                (order_id,),
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.NewOrder).filter_by(order_id=order_id).first()
             if row is None:
                 return error.error_invalid_order_id(order_id)
 
-            order_id = row[0]
-            buyer_id = row[1]
-            store_id = row[2]
+            order_id = row.order_id
+            buyer_id = row.buyer_id
+            store_id = row.store_id
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "SELECT balance, password FROM \"user\" WHERE user_id = %s;", (buyer_id,)
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.User).filter_by(user_id=buyer_id).first()
             if row is None:
                 return error.error_non_exist_user_id(buyer_id)
-            balance = row[0]
+            balance = row.balance
 
-            if password != row[1]:
+            if password != row.password:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "SELECT store_id, user_id FROM \"user_store\" WHERE store_id = %s;",
-                (store_id,),
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.UserStore).filter_by(store_id=store_id).first()
             if row is None:
                 return error.error_non_exist_store_id(store_id)
 
-            seller_id = row[1]
+            seller_id = row.user_id
 
             if not self.user_id_exist(seller_id):
                 return error.error_non_exist_user_id(seller_id)
 
-            self.cursor.execute(
-                "SELECT book_id, count, price FROM \"new_order_detail\" WHERE order_id = %s;",
-                (order_id,),
-            )
+            rows = self.session.query(store.NewOrderDetail).filter_by(order_id=order_id).all()
             total_price = 0
-            for row in self.cursor.fetchall():
-                count = row[1]
-                price = row[2]
+            for row in rows:
+                count = row.count
+                price = row.price
                 total_price = total_price + price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
 
-            self.cursor.execute(
-                "UPDATE \"user\" set balance = balance - %s WHERE user_id = %s AND balance >= %s",
-                (total_price, buyer_id, total_price),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter(store.User.user_id == buyer_id,
+                                                        store.User.balance >= total_price).update(
+                {store.User.balance: (store.User.balance - total_price)})
+            if rowcount == 0:
                 return error.error_not_sufficient_funds(order_id)
 
-            self.cursor.execute(
-                "UPDATE \"user\" set balance = balance + %s WHERE user_id = %s",
-                (total_price, buyer_id),
-            )
+            rowcount = self.session.query(store.User).filter_by(user_id=seller_id).update(
+                {'balance': store.User.balance + total_price})
+            if rowcount == 0:
+                return error.error_non_exist_user_id(seller_id)
 
-            if self.cursor.rowcount == 0:
-                return error.error_non_exist_user_id(buyer_id)
-
-            self.cursor.execute(
-                "DELETE FROM \"new_order\" WHERE order_id = %s", (order_id,)
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.NewOrder).filter_by(order_id=order_id).delete()
+            if rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
             # 更新历史订单状态为已支付
-            self.cursor.execute(
-                "SELECT * FROM \"history_order\" WHERE order_id = %s;",
-                (order_id,),
+            rowcount = self.session.query(store.HistoryOrder).filter_by(order_id=order_id, user_id=buyer_id).update(
+                {'is_paid': True}
             )
-            if self.cursor.rowcount == 0:
+            if rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
-            self.cursor.execute(
-                "UPDATE \"history_order\" SET is_paid = %s WHERE order_id = %s AND user_id = %s;",
-                (True, order_id, user_id),
-            )
-
-            self.cursor.execute(
-                "DELETE FROM \"new_order_detail\" WHERE order_id = %s", (order_id,)
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.NewOrderDetail).filter_by(order_id=order_id).delete()
+            if rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -182,24 +154,19 @@ class Buyer(db_conn.DBConn):
 
     def add_funds(self, user_id, password, add_value):
         try:
-            self.cursor.execute(
-                "SELECT password FROM \"user\" WHERE user_id=%s", (user_id,)
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.User).filter_by(user_id=user_id).first()
             if row is None:
                 return error.error_authorization_fail()
 
-            if row[0] != password:
+            if row.password != password:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "UPDATE \"user\" SET balance = balance + %s WHERE user_id = %s",
-                (add_value, user_id),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).update(
+                {'balance': store.User.balance + add_value})
+            if rowcount == 0:
                 return error.error_non_exist_user_id(user_id)
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -212,27 +179,24 @@ class Buyer(db_conn.DBConn):
             if not self.user_id_exist(user_id):
                 return error.error_non_exist_user_id(user_id)
 
-            self.cursor.execute(
-                "SELECT is_cancelled, is_delivered FROM \"history_order\" WHERE order_id = %s;",
-                (order_id,),
-            )
-            if self.cursor.rowcount == 0:
+            row = self.session.query(store.HistoryOrder).filter_by(order_id=order_id).first()
+            if row is None:
                 return error.error_invalid_order_id(order_id)
 
-            order = self.cursor.fetchone()
-            is_cancelled = order[0]
+            is_cancelled = row.is_cancelled
             if is_cancelled is True:
                 return error.error_order_cancelled(order_id)
-            is_delivered = order[1]
+            is_delivered = row.is_delivered
             if is_delivered is False:
                 return error.error_order_not_delivered(order_id)
 
             # 更新历史订单状态为已收货
-            self.cursor.execute(
-                "UPDATE \"history_order\" SET is_received = %s WHERE order_id = %s;",
-                (True, order_id),
+            rowcount = self.session.query(store.HistoryOrder).filter_by(order_id=order_id).update(
+                {'is_delivered': True}
             )
-            self.conn.commit()
+            if rowcount == 0:
+                return error.error_invalid_order_id(order_id)
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -245,25 +209,21 @@ class Buyer(db_conn.DBConn):
             if not self.user_id_exist(user_id):
                 return error.error_non_exist_user_id(user_id)
 
-            self.cursor.execute(
-                "SELECT order_id, is_cancelled, is_paid, store_id, book_id, book_count FROM \"history_order\" WHERE order_id = %s;",
-                (order_id,),
-            )
-            if self.cursor.rowcount == 0:
+            rows = self.session.query(store.HistoryOrder).filter_by(order_id=order_id).all()
+            if rows is None:
                 return error.error_invalid_order_id(order_id)
 
-            orders = self.cursor.fetchall()
-            for order in orders:
-                is_cancelled = order[1]
+            for order in rows:
+                is_cancelled = order.is_cancelled
                 if is_cancelled is True:
                     return error.error_order_cancelled(order_id)
                 # 订单状态为已支付时无法取消订单
-                is_paid = order[2]
+                is_paid = order.is_paid
                 if is_paid is True:
                     return error.error_order_cancellation_fail(order_id)
                 self.cancel_order(order, order_id)
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -274,20 +234,18 @@ class Buyer(db_conn.DBConn):
     def overtime_cancel_order(self):
         try:
             living_time = 15 * 60  # 未支付订单保留15分钟
-            self.cursor.execute(
-                "SELECT order_id, is_cancelled, is_paid, store_id, book_id, book_count FROM \"history_order\";"
-            )
+            rows = self.session.query(store.HistoryOrder).all()
+            num_rows = len(rows)
             # 还没有产生订单
-            if self.cursor.rowcount == 0:
+            if num_rows == 0:
                 return 200, "ok"
 
             num_cancelled = 0
-            orders = self.cursor.fetchall()
 
-            for order in orders:
-                order_id = order[0]
-                is_cancelled = order[1]
-                is_paid = order[2]
+            for order in rows:
+                order_id = order.order_id
+                is_cancelled = order.is_cancelled
+                is_paid = order.is_paid
                 if is_cancelled is True or is_paid is True:
                     continue
 
@@ -307,7 +265,7 @@ class Buyer(db_conn.DBConn):
                     self.cancel_order(order, order_id)
                     num_cancelled += 1
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -316,33 +274,23 @@ class Buyer(db_conn.DBConn):
 
     # 取消订单
     def cancel_order(self, order, order_id):
-        self.cursor.execute(
-            "UPDATE \"history_order\" SET is_cancelled = %s WHERE order_id = %s;",
-            (True, order_id),
+        self.session.query(store.HistoryOrder).filter_by(order_id=order_id).update(
+            {'is_cancelled': True}
         )
-
         # 还原书籍库存
-        self.cursor.execute(
-            "UPDATE \"store\" SET stock_level = stock_level + %s WHERE store_id = %s AND book_id = %s;",
-            (order[5], order[3], order[4]),
+        self.session.query(store.StoreTable).filter_by(store_id=order.store_id, book_id=order.book_id).update(
+            {'stock_level': store.StoreTable.stock_level + order.book_count}
         )
-
         # 删除new_order和new_order_detail中的相关文档
-        self.cursor.execute(
-            "DELETE FROM \"new_order\" WHERE order_id = %s;",
-            (order_id,),
-        )
-        if self.cursor.rowcount == 0:
+        rowcount = self.session.query(store.NewOrder).filter_by(order_id=order_id).delete()
+        if rowcount == 0:
             return error.error_invalid_order_id(order_id)
 
-        self.cursor.execute(
-            "DELETE FROM \"new_order_detail\" WHERE order_id = %s;",
-            (order_id,),
-        )
-        if self.cursor.rowcount == 0:
+        rowcount = self.session.query(store.NewOrderDetail).filter_by(order_id=order_id).delete()
+        if rowcount == 0:
             return error.error_invalid_order_id(order_id)
 
-        self.conn.commit()
+        self.session.commit()
 
     # 搜索历史订单
     def search_history_order(self, user_id, order_id, page, per_page):
@@ -351,42 +299,66 @@ class Buyer(db_conn.DBConn):
                 return error.error_non_exist_user_id(user_id)
 
             if order_id == "":
-                self.cursor.execute(
-                    "SELECT * FROM \"history_order\" WHERE user_id = %s;",
-                    (user_id,),
-                )
-                if self.cursor.rowcount == 0:
+                row = self.session.query(store.HistoryOrder).filter_by(user_id=user_id).all()
+                num_row = len(row)
+                if num_row == 0:
                     return error.error_non_history_order(user_id)
-                order = self.cursor.fetchall()
-                res = order
+                results = row
 
-                if self.cursor.rowcount > per_page:
+                if num_row > per_page:
                     start = (page - 1) * per_page
                     end = start + per_page
-                    if end > self.cursor.rowcount:
-                        res = order[-per_page:]
+                    if end > num_row:
+                        results = row[-per_page:]
                     else:
-                        res = order[start:end]
+                        results = row[start:end]
+
+                res = []
+                for result in results:
+                    res.append((
+                        f"order_id: {result.order_id}\n"
+                        f"user_id: {result.user_id}\n"
+                        f"store_id: {result.store_id}\n"
+                        f"book_id: {result.book_id}\n"
+                        f"book_count: {result.book_count}\n"
+                        f"price: {result.price}\n"
+                        f"is_cancelled: {result.is_cancelled}\n"
+                        f"is_paid: {result.is_paid}\n"
+                        f"is_delivered: {result.is_delivered}\n"
+                        f"is_received: {result.is_received}\n"
+                    ))
 
             else:
-                self.cursor.execute(
-                    "SELECT * FROM \"history_order\" WHERE order_id = %s AND user_id = %s;",
-                    (order_id, user_id),
-                )
-                if self.cursor.rowcount == 0:
+                row = self.session.query(store.HistoryOrder).filter_by(order_id=order_id, user_id=user_id).all()
+                num_row = len(row)
+                if num_row == 0:
                     return error.error_non_history_order(user_id)
-                order = self.cursor.fetchall()
-                res = order
+                results = row
 
-                if self.cursor.rowcount > per_page:
+                if num_row > per_page:
                     start = (page - 1) * per_page
                     end = start + per_page
-                    if end > self.cursor.rowcount:
-                        res = order[-per_page:]
+                    if end > num_row:
+                        results = row[-per_page:]
                     else:
-                        res = order[start:end]
+                        results = row[start:end]
 
-            self.conn.commit()
+                res = []
+                for result in results:
+                    res.append((
+                        f"order_id: {result.order_id}\n"
+                        f"user_id: {result.user_id}\n"
+                        f"store_id: {result.store_id}\n"
+                        f"book_id: {result.book_id}\n"
+                        f"book_count: {result.book_count}\n"
+                        f"price: {result.price}\n"
+                        f"is_cancelled: {result.is_cancelled}\n"
+                        f"is_paid: {result.is_paid}\n"
+                        f"is_delivered: {result.is_delivered}\n"
+                        f"is_received: {result.is_received}\n"
+                    ))
+
+            self.session.commit()
             return 200, f"{str(res)}"
 
         except Exception as e:
@@ -400,16 +372,13 @@ class Buyer(db_conn.DBConn):
 
             # 当前店铺搜索
             if store_id:
-                self.cursor.execute(
-                    "SELECT book_id FROM \"store\" WHERE store_id = %s;", (store_id,)
-                )
-                if self.cursor.rowcount == 0:
+                rows = self.session.query(store.StoreTable).filter_by(store_id=store_id).all()
+                if len(rows) == 0:
                     return error.error_non_exist_store_id(store_id)
 
                 book_id_store = []
-                book_ids = self.cursor.fetchall()
-                for id in book_ids:
-                    book_id_store.append(id[0])
+                for row in rows:
+                    book_id_store.append(row.book_id)
 
                 find_condition["book_id"] = {"$in": book_id_store}
 
@@ -461,7 +430,7 @@ class Buyer(db_conn.DBConn):
 
                     res = self.paging(book1, page, per_page, num_col)
 
-                self.conn.commit()
+                self.session.commit()
                 return 200, f"{str(res)}"
 
             # 全站搜索

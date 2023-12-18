@@ -1,10 +1,9 @@
-import psycopg2
 import re
 import jieba
 import json
-import pymongo
 from be.model import error
 from be.model import db_conn
+from be.model import store
 
 
 class Seller(db_conn.DBConn):
@@ -35,11 +34,11 @@ class Seller(db_conn.DBConn):
             if self.book_id_exist(store_id, book_id):
                 return error.error_exist_book_id(book_id)
 
-            self.cursor.execute(
-                "INSERT into \"store\"(store_id, book_id, book_info, stock_level)"
-                "VALUES (%s, %s, %s, %s)",
-                (store_id, book_id, book_json_str, stock_level),
-            )
+            book = store.StoreTable(store_id=store_id,
+                                    book_id=book_id,
+                                    book_info=book_json_str,
+                                    stock_level=stock_level)
+            self.session.add(book)
 
             # 加入全站书籍名录
             book_detail_col = self.textdb.get_collection("book_detail")
@@ -59,7 +58,7 @@ class Seller(db_conn.DBConn):
                 }
                 book_detail_col.insert_one(book_data)
 
-            self.conn.commit()
+            self.session.commit()
         except Exception as e:
             return 530, "{}".format(str(e))
         return 200, "ok"
@@ -75,12 +74,10 @@ class Seller(db_conn.DBConn):
             if not self.book_id_exist(store_id, book_id):
                 return error.error_non_exist_book_id(book_id)
 
-            self.cursor.execute(
-                "UPDATE \"store\" SET stock_level = stock_level + %s "
-                "WHERE store_id = %s AND book_id = %s",
-                (add_stock_level, store_id, book_id),
+            self.session.query(store.StoreTable).filter_by(store_id=store_id, book_id=book_id).update(
+                {'stock_level': store.StoreTable.stock_level + add_stock_level}
             )
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -92,11 +89,10 @@ class Seller(db_conn.DBConn):
                 return error.error_non_exist_user_id(user_id)
             if self.store_id_exist(store_id):
                 return error.error_exist_store_id(store_id)
-            self.cursor.execute(
-                "INSERT into \"user_store\"(store_id, user_id)" "VALUES (%s, %s)",
-                (store_id, user_id),
-            )
-            self.conn.commit()
+
+            new_store = store.UserStore(user_id=user_id, store_id=store_id)
+            self.session.add(new_store)
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -110,26 +106,24 @@ class Seller(db_conn.DBConn):
             if not self.store_id_exist(store_id):
                 return error.error_non_exist_store_id(store_id)
 
-            self.cursor.execute(
-                "SELECT is_cancelled, is_paid FROM \"history_order\" WHERE order_id = %s;",
-                (order_id,),
-            )
-            if self.cursor.rowcount == 0:
+            orders = self.session.query(store.HistoryOrder).filter_by(order_id=order_id).all()
+            if orders is None:
                 return error.error_invalid_order_id(order_id)
 
-            orders = self.cursor.fetchall()
             for order in orders:
-                if order[0] is True:
+                if order.is_cancelled is True:
                     return error.error_order_cancelled(order_id)
-                if order[1] is False:
+                if order.is_paid is False:
                     return error.error_order_not_paid(order_id)
 
             # 更新历史订单状态为已发货
-            self.cursor.execute(
-                "UPDATE \"history_order\" SET is_delivered = %s WHERE order_id = %s;",
-                (True, order_id),
+            rowcount = self.session.query(store.HistoryOrder).filter_by(order_id=order_id).update(
+                {'is_delivered': True}
             )
-            self.conn.commit()
+            if rowcount == 0:
+                return error.error_invalid_order_id(order_id)
+
+            self.session.commit()
             return 200, "book deliver ok"
 
         except Exception as e:

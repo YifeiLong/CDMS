@@ -1,21 +1,80 @@
 import logging
-import psycopg2
 import pymongo
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+
+Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = 'user'
+
+    user_id = Column(String, primary_key=True, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    balance = Column(Integer, nullable=False)
+    token = Column(String)
+    terminal = Column(String)
+
+
+class UserStore(Base):
+    __tablename__ = 'user_store'
+
+    user_id = Column(String, ForeignKey('user.user_id'), primary_key=True, nullable=False)
+    store_id = Column(String, primary_key=True, nullable=False)
+
+
+class StoreTable(Base):
+    __tablename__ = 'store'
+
+    store_id = Column(String, primary_key=True, nullable=False)
+    book_id = Column(String, primary_key=True, nullable=False)
+    book_info = Column(String)
+    stock_level = Column(Integer)
+
+
+class NewOrder(Base):
+    __tablename__ = 'new_order'
+
+    order_id = Column(String, primary_key=True, unique=True, nullable=False)
+    user_id = Column(String, ForeignKey('user.user_id'))
+    store_id = Column(String)
+
+
+class NewOrderDetail(Base):
+    __tablename__ = 'new_order_detail'
+
+    order_id = Column(String, primary_key=True, nullable=False)
+    book_id = Column(String, primary_key=True, nullable=False)
+    count = Column(Integer)
+    price = Column(Integer)
+
+
+class HistoryOrder(Base):
+    __tablename__ = 'history_order'
+
+    order_id = Column(String, primary_key=True, nullable=False)
+    store_id = Column(String)
+    user_id = Column(String, primary_key=True, nullable=False)
+    book_id = Column(String)
+    book_count = Column(Integer)
+    price = Column(Integer)
+    is_cancelled = Column(Boolean)
+    is_paid = Column(Boolean)
+    is_delivered = Column(Boolean)
+    is_received = Column(Boolean)
 
 
 class Store:
     database: str
 
     def __init__(self):
+        self.session = None
         self.database = "be"
+        self.engine = create_engine('postgresql://postgres:longyifei1206@localhost:5432/be',
+                                    echo=True, pool_size=8, pool_recycle=60*30)
 
-        self.db = psycopg2.connect(
-            dbname=self.database,
-            user="postgres",
-            password="longyifei1206",
-            host="localhost",
-            port="5432"
-        )
         # MongoDB存放大段文本和blob数据，book_detail
         self.client = pymongo.MongoClient("mongodb://localhost:27017/")
         self.text_db = self.client.get_database(self.database)
@@ -25,46 +84,7 @@ class Store:
 
     def init_tables(self):
         try:
-            cur = self.db.cursor()
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"user\" ("
-                "user_id TEXT PRIMARY KEY, password TEXT NOT NULL, "
-                "balance INTEGER NOT NULL, token TEXT, terminal TEXT);"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"user_store\"("
-                "user_id TEXT, store_id TEXT, PRIMARY KEY(user_id, store_id));"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"store\"( "
-                "store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,"
-                " PRIMARY KEY(store_id, book_id))"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"new_order\"( "
-                "order_id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT)"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"new_order_detail\"( "
-                "order_id TEXT, book_id TEXT, count INTEGER, price INTEGER,  "
-                "PRIMARY KEY(order_id, book_id))"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"history_order\" ("
-                "order_id TEXT, store_id TEXT, user_id TEXT, book_id TEXT, "
-                "book_count INTEGER, price INTEGER, "
-                "is_cancelled BOOLEAN, is_paid BOOLEAN, is_delivered BOOLEAN, is_received BOOLEAN, "
-                "PRIMARY KEY(order_id, book_id))"
-            )
-
-            self.db.commit()
-            cur.close()
+            Base.metadata.create_all(self.engine)
 
             self.book_detail_col = self.text_db.create_collection("book_detail")
             self.book_detail_col.create_index([("tags", pymongo.ASCENDING)])
@@ -72,11 +92,13 @@ class Store:
             self.book_detail_col.create_index([("author", pymongo.ASCENDING)])
             self.book_detail_col.create_index([("description", "text")])  # 所有文本信息
 
-        except psycopg2.Error as e:
+        except Exception as e:
             logging.error(e)
 
     def get_db_conn(self):
-        return self.db, self.text_db
+        DbSession = sessionmaker(bind=self.engine)
+        self.session = DbSession()
+        return self.session, self.text_db
 
 
 database_instance: Store = None
