@@ -1,9 +1,10 @@
 import jwt
 import time
 import logging
-import psycopg2
+from sqlalchemy.exc import SQLAlchemyError
 from be.model import error
 from be.model import db_conn
+from be.model import store
 
 # encode a json string like:
 #   {
@@ -57,54 +58,44 @@ class User(db_conn.DBConn):
         try:
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
-            self.cursor.execute(
-                "INSERT into \"user\"(user_id, password, balance, token, terminal) "
-                "VALUES (%s, %s, %s, %s, %s);",
-                (user_id, password, 0, token, terminal),
-            )
-            self.conn.commit()
-        except psycopg2.Error:
+            new_user = store.User(user_id=user_id, password=password, balance=0, token=token, terminal=terminal)
+            self.session.add(new_user)
+            self.session.commit()
+
+        except SQLAlchemyError:
             return error.error_exist_user_id(user_id)
         return 200, "ok"
 
     def check_token(self, user_id: str, token: str):
-        self.cursor.execute("SELECT token from \"user\" where user_id=%s", (user_id,))
-        row = self.cursor.fetchone()
+        row = self.session.query(store.User).filter_by(user_id=user_id).first()
         if row is None:
             return error.error_authorization_fail()
-        db_token = row[0]
+        db_token = row.token
         if not self.__check_token(user_id, db_token, token):
             return error.error_authorization_fail()
         return 200, "ok"
 
     def check_password(self, user_id: str, password: str):
-        self.cursor.execute(
-            "SELECT password from \"user\" where user_id=%s", (user_id,)
-        )
-        row = self.cursor.fetchone()
+        row = self.session.query(store.User).filter_by(user_id=user_id).first()
         if row is None:
             return error.error_authorization_fail()
 
-        if password != row[0]:
+        if password != row.password:
             return error.error_authorization_fail()
 
         return 200, "ok"
 
     def login(self, user_id: str, password: str, terminal: str):
-        token = ""
         try:
             code, message = self.check_password(user_id, password)
             if code != 200:
                 return code, message, ""
 
             token = jwt_encode(user_id, terminal)
-            self.cursor.execute(
-                "UPDATE \"user\" set token=%s, terminal =%s where user_id =%s",
-                (token, terminal, user_id),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).update({'token': token, 'terminal': terminal})
+            if rowcount == 0:
                 return error.error_authorization_fail() + ("",)
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e)), ""
@@ -119,14 +110,11 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             dummy_token = jwt_encode(user_id, terminal)
 
-            self.cursor.execute(
-                "UPDATE \"user\" SET token =%s, terminal =%s WHERE user_id=%s",
-                (dummy_token, terminal, user_id),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).update({'token': dummy_token, 'terminal': terminal})
+            if rowcount == 0:
                 return error.error_authorization_fail()
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -138,9 +126,9 @@ class User(db_conn.DBConn):
             if code != 200:
                 return code, message
 
-            self.cursor.execute("DELETE from \"user\" where user_id=%s", (user_id,))
-            if self.cursor.rowcount == 1:
-                self.conn.commit()
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).delete()
+            if rowcount == 1:
+                self.session.commit()
             else:
                 return error.error_authorization_fail()
 
@@ -158,14 +146,14 @@ class User(db_conn.DBConn):
 
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
-            self.cursor.execute(
-                "UPDATE \"user\" set password =%s, token=%s, terminal =%s where user_id =%s",
-                (new_password, token, terminal, user_id),
+
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).update(
+                {'password': new_password, 'token': token, 'terminal': terminal}
             )
-            if self.cursor.rowcount == 0:
+            if rowcount == 0:
                 return error.error_authorization_fail()
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))

@@ -1,60 +1,77 @@
 import logging
-import psycopg2
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+
+Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = 'user'
+
+    user_id = Column(String, primary_key=True, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    balance = Column(Integer, nullable=False)
+    token = Column(String)
+    terminal = Column(String)
+
+
+class UserStore(Base):
+    __tablename__ = 'user_store'
+
+    user_id = Column(String, ForeignKey('user.user_id'), primary_key=True, nullable=False)
+    store_id = Column(String, primary_key=True, nullable=False)
+
+
+class StoreTable(Base):
+    __tablename__ = 'store'
+
+    store_id = Column(String, primary_key=True, nullable=False)
+    book_id = Column(String, primary_key=True, nullable=False)
+    book_info = Column(String)
+    stock_level = Column(Integer)
+
+
+class NewOrder(Base):
+    __tablename__ = 'new_order'
+
+    order_id = Column(String, primary_key=True, unique=True, nullable=False)
+    user_id = Column(String, ForeignKey('user.user_id'))
+    store_id = Column(String)
+
+
+class NewOrderDetail(Base):
+    __tablename__ = 'new_order_detail'
+
+    order_id = Column(String, primary_key=True, nullable=False)
+    book_id = Column(String, primary_key=True, nullable=False)
+    count = Column(Integer)
+    price = Column(Integer)
 
 
 class Store:
-    # database: str
+    database: str
 
     def __init__(self):
-        self.db = psycopg2.connect(
-            dbname="be",
-            user="postgres",
-            password="longyifei1206",
-            host="localhost",
-            port="5432"
-        )
+        self.session = None
+        self.database = "be"
+        self.engine = create_engine('postgresql://postgres:longyifei1206@localhost:5432/be',
+                                    echo=True, pool_size=8, pool_recycle=60*30)
+
         self.init_tables()
 
     def init_tables(self):
         try:
-            conn = self.get_db_conn()
-            cur = conn.cursor()
+            Base.metadata.create_all(self.engine)
 
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"user\" ("
-                "user_id TEXT PRIMARY KEY, password TEXT NOT NULL, "
-                "balance INTEGER NOT NULL, token TEXT, terminal TEXT);"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"user_store\"("
-                "user_id TEXT, store_id TEXT, PRIMARY KEY(user_id, store_id));"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"store\"( "
-                "store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,"
-                " PRIMARY KEY(store_id, book_id))"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"new_order\"( "
-                "order_id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT)"
-            )
-
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS \"new_order_detail\"( "
-                "order_id TEXT, book_id TEXT, count INTEGER, price INTEGER,  "
-                "PRIMARY KEY(order_id, book_id))"
-            )
-
-            conn.commit()
-            cur.close()
-        except psycopg2.Error as e:
+        except Exception as e:
             logging.error(e)
 
     def get_db_conn(self):
-        return self.db
+        DbSession = sessionmaker(bind=self.engine)
+        self.session = DbSession()
+        return self.session
 
 
 database_instance: Store = None

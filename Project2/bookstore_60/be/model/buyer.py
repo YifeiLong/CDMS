@@ -1,9 +1,11 @@
-import psycopg2
 import uuid
 import json
 import logging
+from sqlalchemy import and_
+
 from be.model import db_conn
 from be.model import error
+from be.model import store
 
 
 class Buyer(db_conn.DBConn):
@@ -22,132 +24,106 @@ class Buyer(db_conn.DBConn):
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
 
             for book_id, count in id_and_count:
-                self.cursor.execute(
-                    "SELECT book_id, stock_level, book_info FROM \"store\" "
-                    "WHERE store_id =%s AND book_id =%s;",
-                    (store_id, book_id),
-                )
-                row = self.cursor.fetchone()
+                row = self.session.query(store.StoreTable).filter_by(store_id=store_id, book_id=book_id).first()
                 if row is None:
                     return error.error_non_exist_book_id(book_id) + (order_id,)
 
-                stock_level = row[1]
-                book_info = row[2]
+                stock_level = row.stock_level
+                book_info = row.book_info
                 book_info_json = json.loads(book_info)
                 price = book_info_json.get("price")
 
                 if stock_level < count:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.cursor.execute(
-                    "UPDATE \"store\" set stock_level = stock_level - %s "
-                    "WHERE store_id = %s and book_id = %s and stock_level >= %s; ",
-                    (count, store_id, book_id, count),
-                )
-                if self.cursor.rowcount == 0:
+                row = self.session.query(store.StoreTable).filter(
+                    and_(store.StoreTable.store_id == store_id, store.StoreTable.book_id == book_id,
+                         store.StoreTable.stock_level >= count)
+                ).first()
+                if row is None:
+                    row.stock_level -= count
+                    self.session.add(row)
+                else:
                     return error.error_stock_level_low(book_id) + (order_id,)
 
-                self.cursor.execute(
-                    "INSERT INTO \"new_order_detail\"(order_id, book_id, count, price) "
-                    "VALUES(%s, %s, %s, %s);",
-                    (uid, book_id, count, price),
-                )
+                new_order_detail = store.NewOrderDetail(order_id=uid, book_id=book_id, count=count, price=price)
+                self.session.add(new_order_detail)
 
-            self.cursor.execute(
-                "INSERT INTO \"new_order\"(order_id, store_id, user_id) "
-                "VALUES(%s, %s, %s);",
-                (uid, store_id, user_id),
-            )
-            self.conn.commit()
+            new_order = store.NewOrder(order_id=order_id, store_id=store_id, user_id=user_id)
+            self.session.add(new_order)
+
+            self.session.commit()
             order_id = uid
 
         except Exception as e:
-            logging.info("530, {}".format(str(e)))
             return 530, "{}".format(str(e)), ""
 
         return 200, "ok", order_id
 
     def payment(self, user_id: str, password: str, order_id: str):
         try:
-            self.cursor.execute(
-                "SELECT order_id, user_id, store_id FROM \"new_order\" WHERE order_id = %s",
-                (order_id,),
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.NewOrder).filter_by(order_id=order_id).first()
             if row is None:
                 return error.error_invalid_order_id(order_id)
 
-            order_id = row[0]
-            buyer_id = row[1]
-            store_id = row[2]
+            order_id = row.order_id
+            buyer_id = row.buyer_id
+            store_id = row.store_id
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "SELECT balance, password FROM \"user\" WHERE user_id = %s;", (buyer_id,)
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.User).filter_by(user_id=buyer_id).first()
             if row is None:
                 return error.error_non_exist_user_id(buyer_id)
-            balance = row[0]
-            if password != row[1]:
+            balance = row.balance
+
+            if password != row.password:
                 return error.error_authorization_fail()
 
             self.cursor.execute(
                 "SELECT store_id, user_id FROM \"user_store\" WHERE store_id = %s;",
                 (store_id,),
             )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.UserStore).filter_by(store_id=store_id).first()
             if row is None:
                 return error.error_non_exist_store_id(store_id)
 
-            seller_id = row[1]
+            seller_id = row.user_id
 
             if not self.user_id_exist(seller_id):
                 return error.error_non_exist_user_id(seller_id)
 
-            self.cursor.execute(
-                "SELECT book_id, count, price FROM \"new_order_detail\" WHERE order_id = %s;",
-                (order_id,),
-            )
+            rows = self.session.query(store.NewOrderDetail).filter_by(order_id=order_id).all()
             total_price = 0
-            for row in self.cursor.fetchall():
-                count = row[1]
-                price = row[2]
+            for row in rows:
+                count = row.count
+                price = row.price
                 total_price = total_price + price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
 
-            self.cursor.execute(
-                "UPDATE \"user\" set balance = balance - %s WHERE user_id = %s AND balance >= %s",
-                (total_price, buyer_id, total_price),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter(store.User.user_id == buyer_id,
+                                                        store.User.balance >= total_price).update(
+                {store.User.balance: (store.User.balance - total_price)})
+            if rowcount == 0:
                 return error.error_not_sufficient_funds(order_id)
 
-            self.cursor.execute(
-                "UPDATE \"user\" set balance = balance + %s WHERE user_id = %s",
-                (total_price, buyer_id),
-            )
+            rowcount = self.session.query(store.User).filter_by(user_id=seller_id).update(
+                {'balance': store.User.balance + total_price})
+            if rowcount == 0:
+                return error.error_non_exist_user_id(seller_id)
 
-            if self.cursor.rowcount == 0:
-                return error.error_non_exist_user_id(buyer_id)
-
-            self.cursor.execute(
-                "DELETE FROM \"new_order\" WHERE order_id = %s", (order_id,)
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.NewOrder).filter_by(order_id=order_id).delete()
+            if rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
-            self.cursor.execute(
-                "DELETE FROM \"new_order_detail\" where order_id = %s", (order_id,)
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.NewOrderDetail).filter_by(order_id=order_id).delete()
+            if rowcount == 0:
                 return error.error_invalid_order_id(order_id)
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
@@ -156,24 +132,19 @@ class Buyer(db_conn.DBConn):
 
     def add_funds(self, user_id, password, add_value):
         try:
-            self.cursor.execute(
-                "SELECT password from \"user\" where user_id=%s", (user_id,)
-            )
-            row = self.cursor.fetchone()
+            row = self.session.query(store.User).filter_by(user_id=user_id).first()
             if row is None:
                 return error.error_authorization_fail()
 
-            if row[0] != password:
+            if row.password != password:
                 return error.error_authorization_fail()
 
-            self.cursor.execute(
-                "UPDATE \"user\" SET balance = balance + %s WHERE user_id = %s",
-                (add_value, user_id),
-            )
-            if self.cursor.rowcount == 0:
+            rowcount = self.session.query(store.User).filter_by(user_id=user_id).update(
+                {'balance': store.User.balance + add_value})
+            if rowcount == 0:
                 return error.error_non_exist_user_id(user_id)
 
-            self.conn.commit()
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
