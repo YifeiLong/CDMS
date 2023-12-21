@@ -1,8 +1,6 @@
 import uuid
 import json
 import logging
-import re
-import jieba
 from datetime import datetime
 from sqlalchemy import and_
 
@@ -367,148 +365,67 @@ class Buyer(db_conn.DBConn):
     # 搜书
     def search_book(self, store_id, title, author, intro, content, tags, page, per_page):
         try:
-            book_detail_col = self.textdb.get_collection("book_detail")
-            find_condition = {}
+            query = self.session.query(store.BookDetail)
+            find_condition = []
+            res = []
 
             # 当前店铺搜索
             if store_id:
                 rows = self.session.query(store.StoreTable).filter_by(store_id=store_id).all()
-                if len(rows) == 0:
+                if rows is None:
                     return error.error_non_exist_store_id(store_id)
 
-                book_id_store = []
-                for row in rows:
-                    book_id_store.append(row.book_id)
+                find_condition.append(store.StoreTable.store_id == store_id)
+                find_condition.append(store.BookDetail.book_id == store.StoreTable.book_id)
 
-                find_condition["book_id"] = {"$in": book_id_store}
+            # 根据作者和标签信息进行第二步筛选
+            if author != "":
+                find_condition.append(store.BookDetail.author.ilike(f"%{author}%"))
+            if tags:
+                find_condition.append(store.BookDetail.tags.ilike(f"%{tags}%"))
+            if title is not None and title != "":
+                find_condition.append(store.BookDetail.title.ilike(f"%{title}%"))
+            if content is not None and content != "":
+                find_condition.append(store.BookDetail.content.ilike(f"%{content}%"))
+            if intro is not None and intro != "":
+                find_condition.append(store.BookDetail.book_intro.ilike(f"%{intro}%"))
 
-                # 根据作者和标签信息进行第二步筛选
-                if author != "":
-                    find_condition["author"] = author
-                if tags:
-                    find_condition["tags"] = {"$in": tags}
-                book1 = book_detail_col.find(find_condition, {"_id": 0, "description": 0})
-                book_id = []
-                for book in book1:
-                    book_id.append(book["book_id"])
+            if find_condition:
+                query = query.join(store.StoreTable, and_(*find_condition))
 
-                # 根据文本信息（标题、内容、目录）进行第三步筛选
-                search_des = ""
-                if title is not None and title != "":
-                    search_des += title
-                if content is not None and content != "":
-                    search_des += content
-                if intro is not None and intro != "":
-                    search_des += intro
+            query = query.with_entities(store.BookDetail)
+            results = query.all()
+            num_results = len(results)
+            if num_results == 0:
+                return error.error_non_search_result()
 
-                if search_des != "":
-                    des_words = self.split_words(search_des)
-                    res_id = []
-                    for word in des_words:
-                        books = book_detail_col.find({"book_id": {"$in": book_id}, "$text": {"$search": word}},
-                                                     {"_id": 0, "book_id": 1})
-                        if books is not None:
-                            for book in books:
-                                res_id.append(book["book_id"])
+            results = self.paging(results, page, per_page, num_results)
 
-                    res_id = list(set(res_id))
-                    if len(res_id) != 0:
-                        book_info = book_detail_col.find({"book_id": {"$in": res_id}}, {"_id": 0, "description": 0})
-                    else:
-                        return error.error_non_search_result()
+            for result in results:
+                res.append((
+                    f"Book ID: {result.book_id}\n"
+                    f"Title: {result.title}\n"
+                    f"Author: {result.author}\n"
+                    f"Book Intro: {result.book_intro}\n"
+                    f"Content: {result.content}\n"
+                    f"Tags: {result.tags}\n"
+                ))
 
-                    num_col = sum(1 for _ in book_info)
-                    if num_col == 0:
-                        return error.error_non_search_result()
-
-                    res = self.paging(book_info, page, per_page, num_col)
-                else:
-                    book1.rewind()
-                    num_col = sum(1 for _ in book1)
-                    if num_col == 0:
-                        return error.error_non_search_result()
-
-                    res = self.paging(book1, page, per_page, num_col)
-
-                self.session.commit()
-                return 200, f"{str(res)}"
-
-            # 全站搜索
-            else:
-                # 根据作者和标签信息进行第一步筛选
-                if author != "":
-                    find_condition["author"] = author
-                if tags:
-                    find_condition["tags"] = {"$in": tags}
-                book1 = book_detail_col.find(find_condition, {"_id": 0})
-                book_id = []
-                for book in book1:
-                    book_id.append(book["book_id"])
-
-                # 根据文本信息（标题、内容、目录）进行第二步筛选
-                search_des = ""
-                if title is not None and title != "":
-                    search_des += title
-                if content is not None and content != "":
-                    search_des += content
-                if intro is not None and intro != "":
-                    search_des += intro
-
-                if search_des != "":
-                    des_words = self.split_words(search_des)
-                    res_id = []
-                    for word in des_words:
-                        books = book_detail_col.find({"book_id": {"$in": book_id}, "$text": {"$search": word}},
-                                                     {"_id": 0, "book_id": 1})
-                        if books is not None:
-                            for book in books:
-                                res_id.append(book["book_id"])
-
-                    res_id = list(set(res_id))
-                    if len(res_id) != 0:
-                        book_info = book_detail_col.find({"book_id": {"$in": res_id}}, {"_id": 0, "description": 0})
-                    else:
-                        return error.error_non_search_result()
-
-                    num_col = sum(1 for _ in book_info)
-                    if num_col == 0:
-                        return error.error_non_search_result()
-
-                    res = self.paging(book_info, page, per_page, num_col)
-
-                else:
-                    book1.rewind()
-                    num_col = sum(1 for _ in book1)
-                    if num_col == 0:
-                        return error.error_non_search_result()
-
-                    res = self.paging(book1, page, per_page, num_col)
-
-                return 200, f"{str(res)}"
+            self.session.commit()
 
         except Exception as e:
             return 530, "{}".format(str(e))
 
-    # 分词
-    def split_words(self, text):
-        words = re.sub(r'[^\w\s\n]', '', text)
-        words = re.sub(r'\n', '', words)
-        res = jieba.cut(words, cut_all=False)
-        res_list = []
-        for word in res:
-            res_list.append(word)
-        res_list = list(set(res_list))
-        return res_list
+        return 200, f"{str(res)}"
 
     # 分页
-    def paging(self, cursor, page, per_page, num_col):
-        cursor.rewind()
-        res = list(cursor)
-        if num_col > per_page:
+    def paging(self, results, page, per_page, num_results):
+        if num_results > per_page:
             start = (page - 1) * per_page
             end = start + per_page
-            if end > num_col:
-                res = res[-per_page:]
+            if end > num_results:
+                results = results[-per_page:]
             else:
-                res = res[start:end]
-        return res
+                results = results[start:end]
+
+        return results

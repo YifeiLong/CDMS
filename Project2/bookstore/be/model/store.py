@@ -66,6 +66,17 @@ class HistoryOrder(Base):
     is_received = Column(Boolean)
 
 
+class BookDetail(Base):
+    __tablename__ = 'book_detail'
+
+    book_id = Column(String, primary_key=True, unique=True, nullable=False)
+    title = Column(String)
+    author = Column(String)
+    book_intro = Column(String)
+    content = Column(String)
+    tags = Column(String)
+
+
 class Store:
     database: str
 
@@ -75,22 +86,11 @@ class Store:
         self.engine = create_engine('postgresql://postgres:longyifei1206@localhost:5432/be',
                                     echo=True, pool_size=8, pool_recycle=60*30)
 
-        # MongoDB存放大段文本和blob数据，book_detail
-        self.client = pymongo.MongoClient("mongodb://localhost:27017/")
-        self.text_db = self.client.get_database(self.database)
-        self.book_detail_col = None
-
         self.init_tables()
 
     def init_tables(self):
         try:
             Base.metadata.create_all(self.engine)
-
-            self.book_detail_col = self.text_db.create_collection("book_detail")
-            self.book_detail_col.create_index([("tags", pymongo.ASCENDING)])
-            self.book_detail_col.create_index([("book_id", pymongo.ASCENDING)], unique=True)
-            self.book_detail_col.create_index([("author", pymongo.ASCENDING)])
-            self.book_detail_col.create_index([("description", "text")])  # 所有文本信息
 
         except Exception as e:
             logging.error(e)
@@ -98,7 +98,7 @@ class Store:
     def get_db_conn(self):
         DbSession = sessionmaker(bind=self.engine)
         self.session = DbSession()
-        return self.session, self.text_db
+        return self.session
 
 
 database_instance: Store = None

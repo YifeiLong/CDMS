@@ -3,7 +3,7 @@ from be.model import store
 
 class DBConn:
     def __init__(self):
-        self.session, self.textdb = store.get_db_conn()
+        self.session = store.get_db_conn()
 
     def user_id_exist(self, user_id):
         row = self.session.query(store.User).filter_by(user_id=user_id).first()
